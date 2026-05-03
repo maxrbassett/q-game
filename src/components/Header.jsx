@@ -2,8 +2,8 @@ import React from "react";
 import { useApp } from "../context/AppContext";
 import styles from "./Header.module.css";
 
-export default function Header({ onFavoritesOpen, onStatsOpen }) {
-  const { stats, favoriteQuestions } = useApp();
+export default function Header({ onFavoritesOpen }) {
+  const { favoriteQuestions } = useApp();
 
   return (
     <header className={styles.header}>
@@ -13,21 +13,6 @@ export default function Header({ onFavoritesOpen, onStatsOpen }) {
       </div>
 
       <div className={styles.actions}>
-        <button
-          className={styles.iconBtn}
-          onClick={onStatsOpen}
-          aria-label="View stats"
-          title="Stats"
-        >
-          <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-            <path d="M3 3v18h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-            <path d="M7 14l4-4 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          {stats.answered > 0 && (
-            <span className={styles.badge}>{stats.answered}</span>
-          )}
-        </button>
-
         <button
           className={styles.iconBtn}
           onClick={onFavoritesOpen}
