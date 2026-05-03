@@ -1,0 +1,205 @@
+.wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 20px 24px;
+  gap: 12px;
+}
+
+/* ── Progress ─────────────────────────────────────────────────────────────── */
+
+.progress {
+  height: 2px;
+  background: var(--surface-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s var(--ease-out);
+}
+
+.counter {
+  text-align: right;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.05em;
+  margin-top: -4px;
+}
+
+/* ── Card ────────────────────────────────────────────────────────────────── */
+
+.card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--card-accent, var(--accent));
+  border-radius: var(--card-radius);
+  padding: 24px 22px 20px;
+  box-shadow: var(--shadow-card);
+  animation: cardEnter 0.35s var(--ease-spring) both;
+  min-height: 240px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+  cursor: grab;
+  position: relative;
+  overflow: hidden;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 80% 20%, var(--accent-dim) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.card:active { cursor: grabbing; }
+
+.exitLeft  { animation: exitLeft  0.12s ease forwards; }
+.exitRight { animation: exitRight 0.12s ease forwards; }
+
+@keyframes cardEnter {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes exitLeft {
+  to { opacity: 0; transform: translateX(-40px) scale(0.96); }
+}
+
+@keyframes exitRight {
+  to { opacity: 0; transform: translateX(40px) scale(0.96); }
+}
+
+.category {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  opacity: 0.9;
+}
+
+.question {
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 4.5vw, 1.5rem);
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--ink);
+  flex: 1;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.answeredBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: #47e87a;
+  letter-spacing: 0.05em;
+}
+
+.favBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-muted);
+  background: var(--surface-2);
+  transition: transform 0.2s var(--ease-spring), color 0.2s;
+}
+
+.favBtn:hover { color: var(--ink); transform: scale(1.1); }
+.favBtn.favActive { animation: pulse 0.3s var(--ease-spring); }
+
+@keyframes pulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* ── Answer toggle ───────────────────────────────────────────────────────── */
+
+.answerToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 11px 20px;
+  border-radius: var(--pill-radius);
+  border: 1px dashed rgba(255,255,255,0.18);
+  background: transparent;
+  color: var(--ink-muted);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 400;
+  transition: all 0.2s;
+}
+
+.answerToggle:hover {
+  border-color: var(--btn-color, var(--accent));
+  color: var(--btn-color, var(--accent));
+  background: rgba(255,255,255,0.03);
+}
+
+/* ── Navigation ──────────────────────────────────────────────────────────── */
+
+.nav {
+  display: flex;
+  gap: 10px;
+}
+
+.navBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 0;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 400;
+  transition: all 0.2s;
+}
+
+.navBtn:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--ink);
+  border-color: rgba(255,255,255,0.18);
+}
+
+.navBtn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.navBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Swipe hint ──────────────────────────────────────────────────────────── */
+
+.swipeHint {
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.05em;
+}
