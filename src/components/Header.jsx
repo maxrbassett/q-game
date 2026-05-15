@@ -2,7 +2,7 @@ import React from "react";
 import { useApp } from "../context/AppContext";
 import styles from "./Header.module.css";
 
-export default function Header({ onFavoritesOpen }) {
+export default function Header({ onFavoritesOpen, onInstallOpen }) {
   const { favoriteQuestions } = useApp();
 
   return (
@@ -13,6 +13,19 @@ export default function Header({ onFavoritesOpen }) {
       </div>
 
       <div className={styles.actions}>
+        <button
+          className={styles.installBtn}
+          onClick={onInstallOpen}
+          aria-label="Download mobile app"
+          title="Save to Home Screen"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+            <path d="M12 16l-5-5h3V4h4v7h3l-5 5z" fill="currentColor"/>
+            <path d="M4 20h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          Get App
+        </button>
+
         <button
           className={styles.iconBtn}
           onClick={onFavoritesOpen}

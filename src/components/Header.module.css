@@ -61,6 +61,33 @@
   transform: scale(0.95);
 }
 
+.installBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink-muted);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 400;
+  transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.15s;
+}
+
+.installBtn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  transform: scale(1.03);
+}
+
+.installBtn:active {
+  transform: scale(0.97);
+}
+
 .badge {
   position: absolute;
   top: -4px;

@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useApp } from "../context/AppContext";
 import { useSwipe, useKeyPress } from "../hooks/index";
-import AnswerPanel from "./AnswerPanel";
 import styles from "./QuestionCard.module.css";
 
 const CATEGORY_COLORS = {
-  "Would You Rather":       "#e8c547",
-  "Which Is Worse":         "#e85d47",
-  "How Much Would It Take": "#47c5e8",
+  "Would You Rather":          "#e8c547",
+  "Which Is Worse":            "#e85d47",
+  "How Much Would It Take":    "#47c5e8",
   "Rate How Much You Believe": "#9b47e8",
-  "Rate How Much You Like": "#e847c5",
-  "Have You Ever":          "#47e87a",
-  "Tell About a Time":      "#e88547",
+  "Rate How Much You Like":    "#e847c5",
+  "Have You Ever":             "#47e87a",
+  "Tell About a Time":         "#e88547",
+  "Your Opinion":              "#47e8c5",
 };
 
 export default function QuestionCard() {
@@ -24,18 +24,45 @@ export default function QuestionCard() {
     toggleFavorite,
     isFavorite,
     getAnswer,
+    saveAnswer,
+    deleteAnswer,
   } = useApp();
 
-  const [showAnswer, setShowAnswer] = useState(false);
+  const [answerOpen, setAnswerOpen] = useState(true);
+  const [answerText, setAnswerText] = useState("");
   const [animKey, setAnimKey] = useState(0);
-  const [direction, setDirection] = useState(null); // 'left' | 'right'
+  const [direction, setDirection] = useState(null);
+  const textareaRef = useRef(null);
 
-  // Re-animate on question change
+  // Reset answer state when question changes
   useEffect(() => {
-    setShowAnswer(false);
+    if (!currentQuestion) return;
+    const existing = getAnswer(currentQuestion.id);
+    setAnswerText(existing?.text ?? "");
+    setAnswerOpen(true);
     setAnimKey((k) => k + 1);
     setDirection(null);
   }, [currentQuestion?.id]);
+
+  // Auto-focus textarea when answer section opens
+  useEffect(() => {
+    if (answerOpen) {
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+  }, [answerOpen, currentQuestion?.id]);
+
+  const handleSave = () => {
+    if (answerText.trim()) {
+      saveAnswer(currentQuestion.id, answerText.trim());
+    } else {
+      deleteAnswer(currentQuestion.id);
+    }
+  };
+
+  const handleDelete = () => {
+    deleteAnswer(currentQuestion.id);
+    setAnswerText("");
+  };
 
   const go = (dir) => {
     setDirection(dir);
@@ -56,7 +83,8 @@ export default function QuestionCard() {
   if (!currentQuestion) return null;
 
   const accentColor = CATEGORY_COLORS[currentQuestion.category] ?? "var(--accent)";
-  const hasAnswer = !!getAnswer(currentQuestion.id);
+  const existing = getAnswer(currentQuestion.id);
+  const hasAnswer = !!existing;
   const fav = isFavorite(currentQuestion.id);
 
   const exitClass =
@@ -111,7 +139,7 @@ export default function QuestionCard() {
             onClick={() => toggleFavorite(currentQuestion.id)}
             aria-label={fav ? "Remove from favorites" : "Add to favorites"}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path
                 d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
                 stroke={fav ? "none" : "currentColor"}
@@ -123,25 +151,54 @@ export default function QuestionCard() {
         </div>
       </div>
 
-      {/* My Answer toggle */}
-      <button
-        className={styles.answerToggle}
-        onClick={() => setShowAnswer((v) => !v)}
-        style={{ "--btn-color": accentColor }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"
-            stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        {hasAnswer ? "Edit my answer" : "Write my answer"}
-      </button>
+      {/* Inline answer section */}
+      <div className={styles.answerSection}>
+        <button
+          className={styles.answerToggle}
+          onClick={() => setAnswerOpen((v) => !v)}
+          style={{ "--btn-color": accentColor }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"
+              stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          {hasAnswer ? "Edit my answer" : "Write my answer"}
+          <svg
+            className={`${styles.chevron} ${answerOpen ? styles.chevronOpen : ""}`}
+            width="14" height="14" viewBox="0 0 24 24" fill="none"
+          >
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
 
-      {showAnswer && (
-        <AnswerPanel
-          question={currentQuestion}
-          onClose={() => setShowAnswer(false)}
-        />
-      )}
+        {answerOpen && (
+          <div className={styles.answerBody}>
+            <textarea
+              ref={textareaRef}
+              className={styles.textarea}
+              placeholder="Type your answer here..."
+              value={answerText}
+              onChange={(e) => setAnswerText(e.target.value)}
+              rows={3}
+            />
+            <div className={styles.answerActions}>
+              {hasAnswer && (
+                <button className={styles.deleteBtn} onClick={handleDelete}>
+                  Delete
+                </button>
+              )}
+              <button
+                className={styles.saveBtn}
+                onClick={handleSave}
+                disabled={!answerText.trim() && !hasAnswer}
+                style={{ "--btn-color": accentColor }}
+              >
+                {hasAnswer ? "Update" : "Save"} Answer
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Nav buttons */}
       <div className={styles.nav}>
