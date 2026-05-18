@@ -1,9 +1,34 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useApp } from "../context/AppContext";
+import { useKeyPress } from "../hooks";
 import styles from "./Header.module.css";
 
-export default function Header({ onFavoritesOpen, onInstallOpen }) {
+export default function Header({
+  theme,
+  onThemeToggle,
+  onFavoritesOpen,
+  onInstallOpen,
+}) {
   const { favoriteQuestions } = useApp();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuWrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDocMouseDown = (e) => {
+      if (menuWrapRef.current && !menuWrapRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [menuOpen]);
+
+  useKeyPress("Escape", () => {
+    if (menuOpen) setMenuOpen(false);
+  });
+
+  const isDark = theme === "dark";
 
   return (
     <header className={styles.header}>
@@ -13,19 +38,36 @@ export default function Header({ onFavoritesOpen, onInstallOpen }) {
       </div>
 
       <div className={styles.actions}>
+        {/* Theme toggle */}
         <button
-          className={styles.installBtn}
-          onClick={onInstallOpen}
-          aria-label="Download mobile app"
-          title="Save to Home Screen"
+          className={styles.iconBtn}
+          onClick={onThemeToggle}
+          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          title={isDark ? "Light mode" : "Dark mode"}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-            <path d="M12 16l-5-5h3V4h4v7h3l-5 5z" fill="currentColor"/>
-            <path d="M4 20h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          Get App
+          {isDark ? (
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8" />
+              <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          ) : (
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+              <path
+                d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
         </button>
 
+        {/* Favorites */}
         <button
           className={styles.iconBtn}
           onClick={onFavoritesOpen}
@@ -45,6 +87,47 @@ export default function Header({ onFavoritesOpen, onInstallOpen }) {
             <span className={styles.badge}>{favoriteQuestions.length}</span>
           )}
         </button>
+
+        {/* Hamburger menu */}
+        <div className={styles.menuWrap} ref={menuWrapRef}>
+          <button
+            className={styles.iconBtn}
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label="Open menu"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            title="Menu"
+          >
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+              <path
+                d="M4 7h16M4 12h16M4 17h16"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+
+          {menuOpen && (
+            <div className={styles.menu} role="menu">
+              <button
+                className={styles.menuItem}
+                role="menuitem"
+                title="Save to Home Screen"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onInstallOpen();
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 16l-5-5h3V4h4v7h3l-5 5z" fill="currentColor" />
+                  <path d="M4 20h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                Get App
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

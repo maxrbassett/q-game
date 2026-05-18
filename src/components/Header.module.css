@@ -2,7 +2,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* env(safe-area-inset-top) pushes content below the status bar in PWA/standalone mode */
   padding: calc(env(safe-area-inset-top, 0px) + 14px) 20px 12px;
   position: sticky;
   top: 0;
@@ -34,9 +33,11 @@
 
 .actions {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
+/* ── Icon button (heart, theme, menu) ────────────────────────────────── */
 .iconBtn {
   position: relative;
   width: 40px;
@@ -57,36 +58,7 @@
   transform: scale(1.05);
 }
 
-.iconBtn:active {
-  transform: scale(0.95);
-}
-
-.installBtn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 12px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--ink-muted);
-  font-family: var(--font-body);
-  font-size: 0.8rem;
-  font-weight: 400;
-  transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.15s;
-}
-
-.installBtn:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--accent-dim);
-  transform: scale(1.03);
-}
-
-.installBtn:active {
-  transform: scale(0.97);
-}
+.iconBtn:active { transform: scale(0.95); }
 
 .badge {
   position: absolute;
@@ -105,3 +77,52 @@
   justify-content: center;
   pointer-events: none;
 }
+
+/* ── Hamburger menu dropdown ─────────────────────────────────────────── */
+
+.menuWrap {
+  position: relative;
+  display: flex;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  padding: 6px;
+  z-index: 20;
+  animation: menuIn 0.16s var(--ease-out);
+}
+
+@keyframes menuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.menuItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 400;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+
+.menuItem:hover {
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
+.menuItem:active { transform: scale(0.98); }

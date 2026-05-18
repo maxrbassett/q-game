@@ -53,6 +53,31 @@ export function useLocalState(key, initial) {
 }
 
 /**
+ * Persisted theme ("dark" | "light"). Defaults to system preference on first
+ * load, then sticks with the user's explicit choice via localStorage.
+ */
+export function useTheme() {
+  const systemPref =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-color-scheme: light)").matches
+      ? "light"
+      : "dark";
+
+  const [theme, setTheme] = useLocalState("qgame_theme", systemPref);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  const toggle = useCallback(
+    () => setTheme((t) => (t === "light" ? "dark" : "light")),
+    [setTheme]
+  );
+
+  return [theme, toggle];
+}
+
+/**
  * Returns true when the viewport is below a given width (default 768px).
  */
 export function useIsMobile(breakpoint = 768) {

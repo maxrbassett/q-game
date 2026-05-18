@@ -30,8 +30,33 @@
   --shadow-card: 0 8px 40px rgba(0,0,0,0.5);
   --shadow-glow: 0 0 30px var(--accent-glow);
 
+  --frame-bg:    #07060a;
+
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-theme="light"] {
+  --bg:          #f5f1ea;
+  --surface:     #fffdf8;
+  --surface-2:   #ede6d8;
+  --border:      rgba(26,24,32,0.10);
+
+  --ink:         #1a1820;
+  --ink-muted:   rgba(26,24,32,0.55);
+  --ink-faint:   rgba(26,24,32,0.25);
+
+  --accent:      #b8902a;
+  --accent-dim:  rgba(184,144,42,0.15);
+  --accent-glow: rgba(184,144,42,0.35);
+
+  --red:         #d04d33;
+  --red-dim:     rgba(208,77,51,0.12);
+
+  --shadow-card: 0 8px 40px rgba(26,24,32,0.12);
+  --shadow-glow: 0 0 30px var(--accent-glow);
+
+  --frame-bg:    #ebe5d8;
 }
 
 /* ── Reset ──────────────────────────────────────────────────────────────────── */
@@ -83,7 +108,7 @@ textarea, input {
 /* On desktop, show a nicer frame */
 @media (min-width: 768px) {
   body {
-    background: #07060a;
+    background: var(--frame-bg);
   }
   .app-shell {
     margin: 0 auto;

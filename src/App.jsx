@@ -5,15 +5,19 @@ import CategoryFilter from "./components/CategoryFilter";
 import QuestionCard from "./components/QuestionCard";
 import FavoritesDrawer from "./components/FavoritesDrawer";
 import PWAModal from "./components/PWAModal";
+import { useTheme } from "./hooks";
 import "./styles/globals.css";
 
 function AppContent() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
+  const [theme, toggleTheme] = useTheme();
 
   return (
     <div className="app-shell">
       <Header
+        theme={theme}
+        onThemeToggle={toggleTheme}
         onFavoritesOpen={() => setShowFavorites(true)}
         onInstallOpen={() => setShowInstall(true)}
       />
