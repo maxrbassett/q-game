@@ -9,7 +9,7 @@ export default function Header({
   onFavoritesOpen,
   onInstallOpen,
 }) {
-  const { favoriteQuestions } = useApp();
+  const { favoriteQuestions, openView } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef(null);
 
@@ -110,6 +110,39 @@ export default function Header({
 
           {menuOpen && (
             <div className={styles.menu} role="menu">
+              <button
+                className={styles.menuItem}
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  openView("categories");
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 6h16M4 12h16M4 18h16"
+                    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+                Categories
+              </button>
+              <button
+                className={styles.menuItem}
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  openView("tags");
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82zM7 7h.01"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Tags
+              </button>
               <button
                 className={styles.menuItem}
                 role="menuitem"

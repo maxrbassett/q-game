@@ -95,11 +95,155 @@
   flex: 1;
 }
 
+/* ── Choice buttons (inside card) ───────────────────────────────────────── */
+
+.choices {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  position: relative;
+  z-index: 1;
+}
+
+.choicesBinary { grid-template-columns: 1fr; }
+.choicesMulti  { grid-template-columns: 1fr; }
+.choicesScale  { grid-template-columns: repeat(3, 1fr); }
+
+@media (min-width: 480px) {
+  .choicesBinary { grid-template-columns: 1fr 1fr; }
+}
+
+.choiceBtn {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.choicesScale .choiceBtn {
+  text-align: center;
+  font-size: 0.85rem;
+  padding: 12px 6px;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.choiceBtn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.choiceBtn:active {
+  transform: scale(0.98);
+}
+
+.choiceBtnActive {
+  background: color-mix(in srgb, var(--choice-accent, var(--accent)) 18%, var(--surface-2));
+  border-color: var(--choice-accent, var(--accent));
+  color: var(--ink);
+}
+
+.choiceBtnActive:hover {
+  background: color-mix(in srgb, var(--choice-accent, var(--accent)) 22%, var(--surface-2));
+}
+
+/* ── Tag chips on the card ──────────────────────────────────────────────── */
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.tagChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 4px 3px 10px;
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  line-height: 1;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.tagChip:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.tagChipLabel {
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-body);
+  font-size: inherit;
+  padding: 4px 2px 4px 0;
+  cursor: pointer;
+}
+
+.tagChipLabel:hover {
+  color: var(--ink);
+}
+
+.tagChipRemove {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--ink-faint);
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.tagChipRemove:hover {
+  color: var(--red);
+  background: var(--red-dim);
+}
+
+.tagAddBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.tagAddBtn:hover {
+  color: var(--ink);
+  border-color: rgba(255, 255, 255, 0.25);
+  background: var(--surface-2);
+}
+
 .cardFooter {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 20px;
+  margin-top: 14px;
 }
 
 .answeredBadge {
