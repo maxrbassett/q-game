@@ -17,6 +17,8 @@ const KEYS = {
   ANSWERS: "qgame_answers",
   SEEN: "qgame_seen",
   SETTINGS: "qgame_settings",
+  CUSTOM_TAGS: "qgame_custom_tags",
+  QUESTION_TAGS: "qgame_question_tags",
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -82,12 +84,15 @@ export function getAnswers() {
 /**
  * Saves a user's answer to a question.
  * @param {string} questionId
- * @param {string} answerText
+ * @param {{ text?: string, choice?: string | null }} payload
  */
-export function saveAnswer(questionId, answerText) {
+export function saveAnswer(questionId, payload) {
   const answers = getAnswers();
+  const text = (payload?.text ?? "").trim();
+  const choice = payload?.choice ?? null;
   answers[questionId] = {
-    text: answerText,
+    text,
+    choice,
     timestamp: Date.now(),
   };
   write(KEYS.ANSWERS, answers);
@@ -138,6 +143,58 @@ export function saveSetting(key, value) {
   const settings = getSettings();
   settings[key] = value;
   write(KEYS.SETTINGS, settings);
+}
+
+// ── Custom Tags ───────────────────────────────────────────────────────────────
+
+/**
+ * Returns a map of user-created tags: { [slug]: { label, createdAt } }.
+ * Firebase equivalent: getDocs(collection(db, "userTags"))
+ */
+export function getCustomTags() {
+  return read(KEYS.CUSTOM_TAGS, {});
+}
+
+/**
+ * Persists a custom tag. Overwrites existing entry with same slug.
+ * @param {string} slug
+ * @param {string} label
+ */
+export function saveCustomTag(slug, label) {
+  const tags = getCustomTags();
+  tags[slug] = {
+    label,
+    createdAt: tags[slug]?.createdAt ?? Date.now(),
+  };
+  write(KEYS.CUSTOM_TAGS, tags);
+}
+
+export function deleteCustomTag(slug) {
+  const tags = getCustomTags();
+  delete tags[slug];
+  write(KEYS.CUSTOM_TAGS, tags);
+}
+
+// ── Per-question Tag Overrides ────────────────────────────────────────────────
+
+/**
+ * Returns a map of { [questionId]: string[] } — when present, the user's tag
+ * list fully replaces the data's tag list for that question.
+ */
+export function getQuestionTagOverrides() {
+  return read(KEYS.QUESTION_TAGS, {});
+}
+
+/**
+ * Saves the effective tag list for a question. Pass [] to record an empty
+ * override (signals "user removed all tags").
+ * @param {string} questionId
+ * @param {string[]} tagSlugs
+ */
+export function setQuestionTags(questionId, tagSlugs) {
+  const overrides = getQuestionTagOverrides();
+  overrides[questionId] = Array.from(new Set(tagSlugs));
+  write(KEYS.QUESTION_TAGS, overrides);
 }
 
 // ── Stats (derived, no extra storage needed) ──────────────────────────────────

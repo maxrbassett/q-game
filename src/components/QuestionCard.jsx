@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useApp } from "../context/AppContext";
 import { useSwipe, useKeyPress } from "../hooks/index";
+import { getChoices } from "../data/choices";
+import { tagLabel } from "../data/tags";
+import TagPicker from "./TagPicker";
 import styles from "./QuestionCard.module.css";
 
 const CATEGORY_COLORS = {
@@ -26,42 +29,74 @@ export default function QuestionCard() {
     getAnswer,
     saveAnswer,
     deleteAnswer,
+    getTagsForQuestion,
+    setTagsForQuestion,
+    customTags,
+    selectTag,
   } = useApp();
 
   const [answerOpen, setAnswerOpen] = useState(true);
   const [answerText, setAnswerText] = useState("");
+  const [selectedChoice, setSelectedChoice] = useState(null);
   const [animKey, setAnimKey] = useState(0);
   const [direction, setDirection] = useState(null);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const textareaRef = useRef(null);
+
+  const questionTags = currentQuestion ? getTagsForQuestion(currentQuestion) : [];
+
+  const handleRemoveTag = (slug) => {
+    if (!currentQuestion) return;
+    setTagsForQuestion(
+      currentQuestion.id,
+      questionTags.filter((t) => t !== slug)
+    );
+  };
+
+  const choices = currentQuestion ? getChoices(currentQuestion) : null;
+  const hasChoices = !!choices;
 
   // Reset answer state when question changes
   useEffect(() => {
     if (!currentQuestion) return;
     const existing = getAnswer(currentQuestion.id);
     setAnswerText(existing?.text ?? "");
+    setSelectedChoice(existing?.choice ?? null);
     setAnswerOpen(true);
     setAnimKey((k) => k + 1);
     setDirection(null);
   }, [currentQuestion?.id]);
 
-  // Auto-focus textarea when answer section opens
+  // Auto-focus textarea when answer section opens (only for free-response questions)
   useEffect(() => {
-    if (answerOpen) {
+    if (answerOpen && !hasChoices) {
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
-  }, [answerOpen, currentQuestion?.id]);
+  }, [answerOpen, currentQuestion?.id, hasChoices]);
+
+  const persist = (nextChoice, nextText) => {
+    const text = (nextText ?? "").trim();
+    if (!text && !nextChoice) {
+      deleteAnswer(currentQuestion.id);
+    } else {
+      saveAnswer(currentQuestion.id, { text, choice: nextChoice ?? null });
+    }
+  };
 
   const handleSave = () => {
-    if (answerText.trim()) {
-      saveAnswer(currentQuestion.id, answerText.trim());
-    } else {
-      deleteAnswer(currentQuestion.id);
-    }
+    persist(selectedChoice, answerText);
+  };
+
+  const handleSelectChoice = (option) => {
+    const next = selectedChoice === option ? null : option;
+    setSelectedChoice(next);
+    persist(next, answerText);
   };
 
   const handleDelete = () => {
     deleteAnswer(currentQuestion.id);
     setAnswerText("");
+    setSelectedChoice(null);
   };
 
   const go = (dir) => {
@@ -121,7 +156,75 @@ export default function QuestionCard() {
         </div>
 
         {/* Question text */}
-        <p className={styles.question}>{currentQuestion.text}</p>
+        <p className={styles.question}>
+          {choices?.displayText ?? currentQuestion.text}
+        </p>
+
+        {/* Choice buttons */}
+        {hasChoices && (
+          <div
+            className={`${styles.choices} ${
+              choices.type === "scale" ? styles.choicesScale :
+              choices.type === "binary" ? styles.choicesBinary :
+              styles.choicesMulti
+            }`}
+            role="radiogroup"
+            aria-label="Select your answer"
+          >
+            {choices.options.map((opt) => {
+              const active = selectedChoice === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  className={`${styles.choiceBtn} ${active ? styles.choiceBtnActive : ""}`}
+                  style={active ? { "--choice-accent": accentColor } : undefined}
+                  onClick={() => handleSelectChoice(opt)}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Tag chips */}
+        <div className={styles.tagRow}>
+          {questionTags.map((slug) => (
+            <span key={slug} className={styles.tagChip}>
+              <button
+                type="button"
+                className={styles.tagChipLabel}
+                onClick={() => selectTag(slug)}
+                title={`Filter by ${tagLabel(slug, customTags)}`}
+              >
+                {tagLabel(slug, customTags)}
+              </button>
+              <button
+                type="button"
+                className={styles.tagChipRemove}
+                onClick={() => handleRemoveTag(slug)}
+                aria-label={`Remove tag ${tagLabel(slug, customTags)}`}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </span>
+          ))}
+          <button
+            type="button"
+            className={styles.tagAddBtn}
+            onClick={() => setTagPickerOpen(true)}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            tag
+          </button>
+        </div>
 
         {/* Card footer */}
         <div className={styles.cardFooter}>
@@ -151,6 +254,13 @@ export default function QuestionCard() {
         </div>
       </div>
 
+      {tagPickerOpen && (
+        <TagPicker
+          question={currentQuestion}
+          onClose={() => setTagPickerOpen(false)}
+        />
+      )}
+
       {/* Inline answer section */}
       <div className={styles.answerSection}>
         <button
@@ -162,7 +272,9 @@ export default function QuestionCard() {
             <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"
               stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          {hasAnswer ? "Edit my answer" : "Write my answer"}
+          {hasChoices
+            ? (answerText ? "Edit additional thoughts" : "Add additional thoughts")
+            : (hasAnswer ? "Edit my answer" : "Write my answer")}
           <svg
             className={`${styles.chevron} ${answerOpen ? styles.chevronOpen : ""}`}
             width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -176,7 +288,9 @@ export default function QuestionCard() {
             <textarea
               ref={textareaRef}
               className={styles.textarea}
-              placeholder="Type your answer here..."
+              placeholder={hasChoices
+                ? "Additional thoughts (optional)..."
+                : "Type your answer here..."}
               value={answerText}
               onChange={(e) => setAnswerText(e.target.value)}
               rows={3}
@@ -193,7 +307,7 @@ export default function QuestionCard() {
                 disabled={!answerText.trim() && !hasAnswer}
                 style={{ "--btn-color": accentColor }}
               >
-                {hasAnswer ? "Update" : "Save"} Answer
+                {hasAnswer ? "Update" : "Save"} {hasChoices ? "Notes" : "Answer"}
               </button>
             </div>
           </div>

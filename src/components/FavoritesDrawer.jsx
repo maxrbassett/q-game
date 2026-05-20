@@ -58,12 +58,23 @@ export default function FavoritesDrawer({ onClose }) {
                     {q.text}
                   </p>
 
-                  {answer && (
+                  {answer && (answer.choice || answer.text) && (
                     <div className={styles.answerPreview}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                         <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
-                      {isExpanded ? answer.text : `${answer.text.slice(0, 80)}${answer.text.length > 80 ? "…" : ""}`}
+                      <span>
+                        {answer.choice && (
+                          <strong className={styles.answerChoice}>{answer.choice}</strong>
+                        )}
+                        {answer.text && (
+                          <span className={answer.choice ? styles.answerNotes : ""}>
+                            {isExpanded
+                              ? answer.text
+                              : `${answer.text.slice(0, 80)}${answer.text.length > 80 ? "…" : ""}`}
+                          </span>
+                        )}
+                      </span>
                     </div>
                   )}
                 </li>

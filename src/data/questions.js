@@ -2615,14 +2615,32 @@ export const QUESTIONS = [
 ];
 
 /**
- * Get a shuffled copy of questions, optionally filtered by category.
- * @param {string|null} category
+ * Get a shuffled copy of questions, filtered by EITHER a category OR a tag
+ * (only one filter applies at a time). Tag filtering respects per-question
+ * tag overrides from `tagOverrides` when provided.
+ *
+ * @param {Object} [filter]
+ * @param {string|null} [filter.category]
+ * @param {string|null} [filter.tag]
+ * @param {Record<string, string[]>} [filter.tagOverrides]
  * @returns {Question[]}
  */
-export function getQuestions(category = null) {
-  const pool = category
-    ? QUESTIONS.filter((q) => q.category === category)
-    : [...QUESTIONS];
+export function getQuestions(filter = {}) {
+  const { category = null, tag = null, tagOverrides = {} } = filter;
+
+  let pool;
+  if (tag) {
+    pool = QUESTIONS.filter((q) => {
+      const tags = Object.prototype.hasOwnProperty.call(tagOverrides, q.id)
+        ? tagOverrides[q.id]
+        : (q.tags ?? []);
+      return tags.includes(tag);
+    });
+  } else if (category) {
+    pool = QUESTIONS.filter((q) => q.category === category);
+  } else {
+    pool = [...QUESTIONS];
+  }
 
   // Fisher-Yates shuffle
   for (let i = pool.length - 1; i > 0; i--) {

@@ -174,3 +174,14 @@
   color: #47e87a;
   line-height: 1.5;
 }
+
+.answerChoice {
+  font-weight: 500;
+}
+
+.answerNotes {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-muted);
+  font-weight: 300;
+}
