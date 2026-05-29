@@ -9,8 +9,6 @@
  * replace the data's tag list for that question.
  */
 
-import { QUESTIONS } from "./questions";
-
 // Friendly display names for the slugs that already exist in the data.
 // Anything not listed here falls back to `humanizeTag(slug)`.
 export const BUILT_IN_TAG_LABELS = {
@@ -54,10 +52,10 @@ export function tagLabel(slug, customTags = {}) {
   return humanizeTag(slug);
 }
 
-/** Set of every tag slug appearing in the question data. */
-export function getBuiltInTagSlugs() {
+/** Set of every tag slug appearing in the provided question list. */
+export function getBuiltInTagSlugs(questions) {
   const set = new Set();
-  for (const q of QUESTIONS) {
+  for (const q of questions ?? []) {
     if (Array.isArray(q.tags)) q.tags.forEach((t) => set.add(t));
   }
   return set;

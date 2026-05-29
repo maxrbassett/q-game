@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { CATEGORIES, QUESTIONS } from "../data/questions";
+import { CATEGORIES } from "../data/questions";
 import { useApp } from "../context/AppContext";
 import { useKeyPress } from "../hooks";
 import styles from "./ListView.module.css";
@@ -27,7 +27,7 @@ const CATEGORY_COLORS = {
 };
 
 export default function ListView({ mode, onClose }) {
-  const { selectCategory, selectTag, allTags } = useApp();
+  const { selectCategory, selectTag, allTags, allQuestions } = useApp();
 
   useKeyPress("Escape", onClose);
 
@@ -44,7 +44,7 @@ export default function ListView({ mode, onClose }) {
   // Pre-compute per-category counts
   const categoryCounts = isCategories
     ? Object.values(CATEGORIES).reduce((acc, cat) => {
-        acc[cat] = QUESTIONS.filter((q) => q.category === cat).length;
+        acc[cat] = allQuestions.filter((q) => q.category === cat).length;
         return acc;
       }, {})
     : null;

@@ -1,15 +1,21 @@
 /**
  * Q Game - Question Database
  *
- * HOW TO ADD YOUR EXCEL QUESTIONS:
- * 1. Export your Excel sheet to CSV
- * 2. Each question needs: { id, category, text, tags? }
- * 3. Replace or append to the QUESTIONS array below
- * 4. Categories are auto-generated from question data — no config needed
+ * The QUESTIONS array below is the seed for the `public.questions` table in
+ * Supabase. When the app is connected to Supabase, `loadQuestions()` returns
+ * questions from the DB; without env vars, the app falls back to this array
+ * (guest mode + offline development).
  *
- * Future: This file can be replaced by a Firestore fetch with zero
- * changes to the rest of the app (see src/services/questionService.js)
+ * To regenerate the SQL seed after editing this file:
+ *   node scripts/generate-seed-sql.mjs
+ *
+ * HOW TO ADD QUESTIONS:
+ * 1. Append entries to the QUESTIONS array below ({ id, category, text, tags? })
+ * 2. Regenerate seed.sql (above) and re-run it in the Supabase SQL editor
+ * 3. Categories are picked up automatically from `CATEGORIES`
  */
+
+import { supabase } from "../services/supabase";
 
 export const CATEGORIES = {
   WOULD_YOU_RATHER: "Would You Rather",
@@ -2619,27 +2625,36 @@ export const QUESTIONS = [
  * (only one filter applies at a time). Tag filtering respects per-question
  * tag overrides from `tagOverrides` when provided.
  *
+ * Pass `questions` to source from a runtime list (e.g. fetched from Supabase).
+ * Defaults to the static seed `QUESTIONS` array for guest/offline mode.
+ *
  * @param {Object} [filter]
+ * @param {Question[]} [filter.questions]
  * @param {string|null} [filter.category]
  * @param {string|null} [filter.tag]
  * @param {Record<string, string[]>} [filter.tagOverrides]
  * @returns {Question[]}
  */
 export function getQuestions(filter = {}) {
-  const { category = null, tag = null, tagOverrides = {} } = filter;
+  const {
+    questions = QUESTIONS,
+    category = null,
+    tag = null,
+    tagOverrides = {},
+  } = filter;
 
   let pool;
   if (tag) {
-    pool = QUESTIONS.filter((q) => {
+    pool = questions.filter((q) => {
       const tags = Object.prototype.hasOwnProperty.call(tagOverrides, q.id)
         ? tagOverrides[q.id]
         : (q.tags ?? []);
       return tags.includes(tag);
     });
   } else if (category) {
-    pool = QUESTIONS.filter((q) => q.category === category);
+    pool = questions.filter((q) => q.category === category);
   } else {
-    pool = [...QUESTIONS];
+    pool = [...questions];
   }
 
   // Fisher-Yates shuffle
@@ -2651,10 +2666,25 @@ export function getQuestions(filter = {}) {
 }
 
 /**
- * Get a single question by ID.
- * @param {string} id
- * @returns {Question|undefined}
+ * Fetch questions from Supabase if configured, otherwise return the static
+ * seed array (guest mode + offline fallback). Network/permission errors
+ * also fall back to the static array.
+ *
+ * @returns {Promise<Question[]>}
  */
-export function getQuestionById(id) {
-  return QUESTIONS.find((q) => q.id === id);
+export async function loadQuestions() {
+  if (!supabase) return QUESTIONS;
+  const { data, error } = await supabase
+    .from("questions")
+    .select("id, category, text, tags");
+  if (error || !data) {
+    console.warn("[questions] Falling back to static seed:", error?.message);
+    return QUESTIONS;
+  }
+  return data.map((q) => ({
+    id: q.id,
+    category: q.category,
+    text: q.text,
+    tags: q.tags ?? [],
+  }));
 }

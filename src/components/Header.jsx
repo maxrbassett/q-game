@@ -8,8 +8,9 @@ export default function Header({
   onThemeToggle,
   onFavoritesOpen,
   onInstallOpen,
+  onAccountOpen,
 }) {
-  const { favoriteQuestions, openView } = useApp();
+  const { favoriteQuestions, openView, user } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef(null);
 
@@ -157,6 +158,20 @@ export default function Header({
                   <path d="M4 20h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
                 Get App
+              </button>
+              <button
+                className={styles.menuItem}
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onAccountOpen();
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8"/>
+                  <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+                {user ? "Account" : "Sign in"}
               </button>
             </div>
           )}
