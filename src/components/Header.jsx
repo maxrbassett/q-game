@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useKeyPress } from "../hooks";
+import LogoMark from "./LogoMark";
 import styles from "./Header.module.css";
 
 export default function Header({
@@ -9,8 +10,9 @@ export default function Header({
   onFavoritesOpen,
   onInstallOpen,
   onAccountOpen,
+  onInboxOpen,
 }) {
-  const { favoriteQuestions, openView, user } = useApp();
+  const { favoriteQuestions, openView, user, unreadInboxCount } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef(null);
 
@@ -34,7 +36,9 @@ export default function Header({
   return (
     <header className={styles.header}>
       <div className={styles.logo}>
-        <span className={styles.logoQ}>Q</span>
+        <span className={styles.logoMark}>
+          <LogoMark size={28} strokeWidth={12} title="Q Game" />
+        </span>
         <span className={styles.logoGame}>Game</span>
       </div>
 
@@ -67,6 +71,28 @@ export default function Header({
             </svg>
           )}
         </button>
+
+        {/* Inbox (signed-in only) */}
+        {user && (
+          <button
+            className={styles.iconBtn}
+            onClick={onInboxOpen}
+            aria-label="Open inbox"
+            title="Inbox"
+          >
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+              <path
+                d="M3 5l9 7 9-7M3 5v12a2 2 0 002 2h14a2 2 0 002-2V5M3 5h18"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {unreadInboxCount > 0 && (
+              <span className={styles.badge}>{unreadInboxCount}</span>
+            )}
+          </button>
+        )}
 
         {/* Favorites */}
         <button

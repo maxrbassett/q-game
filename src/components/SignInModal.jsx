@@ -6,8 +6,18 @@ import styles from "./SignInModal.module.css";
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
-export default function SignInModal({ onClose }) {
-  const { user, isCloudEnabled, signInWithGoogle, signOut } = useApp();
+/**
+ * Account modal. Renders one of three states based on auth + profile:
+ *   • signed-out  → Google sign-in button
+ *   • signed-in, no username  → username claim form
+ *   • signed-in, has username → "signed in as @x" + sign-out
+ *
+ * When `enforceUsername` is true the modal is non-dismissible (no close
+ * button, no backdrop dismiss, no Escape) — used by App.jsx as a hard gate
+ * after Google sign-in returns and the user still needs to claim a handle.
+ */
+export default function SignInModal({ onClose, enforceUsername = false }) {
+  const { user, isCloudEnabled, signInWithGoogle, signOut, refreshProfile } = useApp();
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [usernameInput, setUsernameInput] = useState("");
@@ -15,7 +25,7 @@ export default function SignInModal({ onClose }) {
   const [savingUsername, setSavingUsername] = useState(false);
   const [signInError, setSignInError] = useState("");
 
-  useKeyPress("Escape", onClose);
+  useKeyPress("Escape", () => { if (!enforceUsername) onClose(); });
 
   useEffect(() => {
     if (!user || !supabase) {
@@ -71,6 +81,9 @@ export default function SignInModal({ onClose }) {
       return;
     }
     setProfile((p) => ({ ...(p ?? {}), username: name }));
+    await refreshProfile?.();
+    // When the modal was opened as a forced username claim, dismiss now.
+    if (enforceUsername) onClose();
   };
 
   const renderBody = () => {
@@ -161,17 +174,24 @@ export default function SignInModal({ onClose }) {
     );
   };
 
+  const handleBackdrop = (e) => {
+    if (enforceUsername) return;
+    if (e.target === e.currentTarget) onClose();
+  };
+
   return (
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className={styles.overlay} onClick={handleBackdrop}>
       <div className={styles.modal} role="dialog" aria-label="Sign in">
         <div className={styles.handle} />
         <div className={styles.header}>
-          <h2 className={styles.title}>Account</h2>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-            </svg>
-          </button>
+          <h2 className={styles.title}>{enforceUsername ? "Almost done" : "Account"}</h2>
+          {!enforceUsername && (
+            <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
         </div>
         {renderBody()}
       </div>

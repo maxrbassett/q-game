@@ -45,6 +45,7 @@ import {
   getBuiltInTagSlugs,
   BUILT_IN_TAG_LABELS,
 } from "../data/tags";
+import { getUnreadCount, subscribeToInbox } from "../services/inboxService";
 
 const AppContext = createContext(null);
 
@@ -52,6 +53,7 @@ export function AppProvider({ children }) {
   // ── Auth ────────────────────────────────────────────────────────────────────
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(!supabase); // ready immediately if cloud disabled
+  const [profile, setProfile] = useState(null);
   const prevUserIdRef = useRef(null);
 
   // ── Question pool (DB-backed when cloud is enabled, else static seed) ───────
@@ -69,6 +71,9 @@ export function AppProvider({ children }) {
   const [view, setView] = useState("cards"); // "cards" | "categories" | "tags"
   const [deck, setDeck] = useState(() => getQuestions({ questions: QUESTIONS }));
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // ── Inbox (Phase 2) ─────────────────────────────────────────────────────────
+  const [unreadInboxCount, setUnreadInboxCount] = useState(0);
 
   const userId = user?.id ?? null;
 
@@ -279,6 +284,46 @@ export function AppProvider({ children }) {
     if (activeTag === slug) clearFilter();
   }, [userId, activeTag, clearFilter]);
 
+  // ── Profile: fetched whenever user changes; used by Welcome flow ───────────
+  const refreshProfile = useCallback(async () => {
+    if (!userId || !supabase) {
+      setProfile(null);
+      return null;
+    }
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) {
+      console.warn("[profile] refresh:", error.message);
+      return null;
+    }
+    setProfile(data ?? null);
+    return data ?? null;
+  }, [userId]);
+
+  useEffect(() => { refreshProfile(); }, [refreshProfile]);
+
+  // ── Inbox badge: fetch count + subscribe to realtime changes ───────────────
+  const refreshInbox = useCallback(async () => {
+    if (!userId) {
+      setUnreadInboxCount(0);
+      return;
+    }
+    setUnreadInboxCount(await getUnreadCount(userId));
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) {
+      setUnreadInboxCount(0);
+      return;
+    }
+    refreshInbox();
+    const unsub = subscribeToInbox(userId, () => { refreshInbox(); });
+    return unsub;
+  }, [userId, refreshInbox]);
+
   // ── Auth actions ───────────────────────────────────────────────────────────
   const signInWithGoogle = useCallback(async () => {
     if (!supabase) throw new Error("Sign-in is unavailable: Supabase not configured");
@@ -291,6 +336,8 @@ export function AppProvider({ children }) {
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
+    // Reset the welcome dismissal so the screen re-appears on next load.
+    try { localStorage.removeItem("qgame_welcome_dismissed"); } catch {}
     await supabase.auth.signOut();
   }, []);
 
@@ -305,6 +352,8 @@ export function AppProvider({ children }) {
     // Auth
     user,
     authReady,
+    profile,
+    refreshProfile,
     isCloudEnabled: !!supabase,
     signInWithGoogle,
     signOut,
@@ -343,6 +392,9 @@ export function AppProvider({ children }) {
     setTagsForQuestion,
     createTag,
     deleteCustomTag,
+    // Inbox
+    unreadInboxCount,
+    refreshInbox,
     // Stats
     stats,
   };
