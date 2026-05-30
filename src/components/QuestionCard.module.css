@@ -246,6 +246,13 @@
   margin-top: 14px;
 }
 
+.cardFooterRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .answeredBadge {
   display: inline-flex;
   align-items: center;
@@ -254,6 +261,21 @@
   color: #47e87a;
   letter-spacing: 0.05em;
 }
+
+.sendBtn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-muted);
+  background: var(--surface-2);
+  transition: transform 0.2s var(--ease-spring), color 0.2s, background 0.2s;
+}
+
+.sendBtn:hover { color: var(--accent); transform: scale(1.1); background: var(--surface); }
+.sendBtn:active { transform: scale(0.95); }
 
 .favBtn {
   width: 48px;

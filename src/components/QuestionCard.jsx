@@ -4,6 +4,7 @@ import { useSwipe, useKeyPress } from "../hooks/index";
 import { getChoices } from "../data/choices";
 import { tagLabel } from "../data/tags";
 import TagPicker from "./TagPicker";
+import SendModal from "./SendModal";
 import styles from "./QuestionCard.module.css";
 
 const CATEGORY_COLORS = {
@@ -33,6 +34,7 @@ export default function QuestionCard() {
     setTagsForQuestion,
     customTags,
     selectTag,
+    user,
   } = useApp();
 
   const [answerOpen, setAnswerOpen] = useState(true);
@@ -41,6 +43,7 @@ export default function QuestionCard() {
   const [animKey, setAnimKey] = useState(0);
   const [direction, setDirection] = useState(null);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
   const textareaRef = useRef(null);
 
   const questionTags = currentQuestion ? getTagsForQuestion(currentQuestion) : [];
@@ -237,20 +240,36 @@ export default function QuestionCard() {
             </span>
           )}
 
-          <button
-            className={`${styles.favBtn} ${fav ? styles.favActive : ""}`}
-            onClick={() => toggleFavorite(currentQuestion.id)}
-            aria-label={fav ? "Remove from favorites" : "Add to favorites"}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                stroke={fav ? "none" : "currentColor"}
-                fill={fav ? "var(--accent)" : "none"}
-                strokeWidth="1.8"
-              />
-            </svg>
-          </button>
+          <div className={styles.cardFooterRight}>
+            {user && (
+              <button
+                className={styles.sendBtn}
+                onClick={() => setSendOpen(true)}
+                aria-label="Send to a friend"
+                title="Send to a friend"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path d="M22 2L11 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            )}
+
+            <button
+              className={`${styles.favBtn} ${fav ? styles.favActive : ""}`}
+              onClick={() => toggleFavorite(currentQuestion.id)}
+              aria-label={fav ? "Remove from favorites" : "Add to favorites"}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                  stroke={fav ? "none" : "currentColor"}
+                  fill={fav ? "var(--accent)" : "none"}
+                  strokeWidth="1.8"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -258,6 +277,13 @@ export default function QuestionCard() {
         <TagPicker
           question={currentQuestion}
           onClose={() => setTagPickerOpen(false)}
+        />
+      )}
+
+      {sendOpen && (
+        <SendModal
+          question={currentQuestion}
+          onClose={() => setSendOpen(false)}
         />
       )}
 

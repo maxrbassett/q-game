@@ -1,1 +1,7 @@
 node_modules/
+dist/
+
+# Local env (Supabase URL + anon key)
+.env
+.env.local
+.env.*.local

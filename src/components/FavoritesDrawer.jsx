@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useApp } from "../context/AppContext";
-import { getQuestionById } from "../data/questions";
 import styles from "./FavoritesDrawer.module.css";
 
 export default function FavoritesDrawer({ onClose }) {

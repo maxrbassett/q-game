@@ -1,28 +1,43 @@
 /**
  * Q Game - App Context
  *
- * Provides global state (favorites, answers, active filter, custom tags, view)
- * to the whole component tree without prop drilling.
+ * Single source of global state. Owns auth, the question pool, the deck, and
+ * per-user state (favorites, answers, custom tags, per-question overrides).
  *
- * Firebase migration: swap storageService calls for async Firestore
- * calls and add a `user` value from Firebase Auth.
+ * Storage routing happens in storageService.js — every call takes a userId
+ * (or null for guest mode), so this file doesn't care whether persistence is
+ * local or cloud-backed.
+ *
+ * When `user` flips from null → signed-in, we auto-migrate guest data into
+ * the cloud, then re-read all per-user state from cloud. The reverse (sign
+ * out) drops back to the device's localStorage data.
  */
 
-import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
 import {
   getFavorites,
   toggleFavorite as toggleFav,
   getAnswers,
   saveAnswer as persistAnswer,
   deleteAnswer as removeAnswer,
-  getStats,
   getCustomTags,
   saveCustomTag,
   deleteCustomTag as removeCustomTag,
   getQuestionTagOverrides,
   setQuestionTags as persistQuestionTags,
+  migrateGuestDataToCloud,
+  deriveStats,
 } from "../services/storageService";
-import { QUESTIONS, getQuestions } from "../data/questions";
+import { supabase } from "../services/supabase";
+import { QUESTIONS, getQuestions, loadQuestions } from "../data/questions";
 import {
   slugify,
   effectiveTagsFor,
@@ -30,63 +45,142 @@ import {
   getBuiltInTagSlugs,
   BUILT_IN_TAG_LABELS,
 } from "../data/tags";
+import { getUnreadCount, subscribeToInbox } from "../services/inboxService";
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
+  // ── Auth ────────────────────────────────────────────────────────────────────
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(!supabase); // ready immediately if cloud disabled
+  const [profile, setProfile] = useState(null);
+  const prevUserIdRef = useRef(null);
+
+  // ── Question pool (DB-backed when cloud is enabled, else static seed) ───────
+  const [allQuestions, setAllQuestions] = useState(QUESTIONS);
+
+  // ── Per-user state (starts from local; refreshed when user changes) ─────────
+  const [favorites, setFavorites] = useState(new Set());
+  const [answers, setAnswers] = useState({});
+  const [customTags, setCustomTags] = useState({});
+  const [tagOverrides, setTagOverrides] = useState({});
+
+  // ── Deck / filter / view ────────────────────────────────────────────────────
   const [activeCategory, setActiveCategory] = useState(null);
   const [activeTag, setActiveTag] = useState(null);
   const [view, setView] = useState("cards"); // "cards" | "categories" | "tags"
-  const [favorites, setFavorites] = useState(() => getFavorites());
-  const [answers, setAnswers] = useState(() => getAnswers());
-  const [customTags, setCustomTags] = useState(() => getCustomTags());
-  const [tagOverrides, setTagOverrides] = useState(() => getQuestionTagOverrides());
-  const [deck, setDeck] = useState(() => getQuestions({ tagOverrides: getQuestionTagOverrides() }));
+  const [deck, setDeck] = useState(() => getQuestions({ questions: QUESTIONS }));
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // ── Filter ──────────────────────────────────────────────────────────────────
+  // ── Inbox (Phase 2) ─────────────────────────────────────────────────────────
+  const [unreadInboxCount, setUnreadInboxCount] = useState(0);
 
-  const rebuildDeck = useCallback((filter) => {
-    setDeck(getQuestions({ ...filter, tagOverrides }));
+  const userId = user?.id ?? null;
+
+  // ── Bootstrap: subscribe to auth + load questions ──────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled) {
+        setUser(data?.session?.user ?? null);
+        setAuthReady(true);
+      }
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => {
+      cancelled = true;
+      sub?.subscription?.unsubscribe?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadQuestions().then((qs) => {
+      if (!cancelled && qs && qs.length) setAllQuestions(qs);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Refresh per-user state whenever the active user changes ────────────────
+  useEffect(() => {
+    let cancelled = false;
+    async function refresh() {
+      // On guest → signed-in transition, push local data up first.
+      const prev = prevUserIdRef.current;
+      if (!prev && userId) {
+        try { await migrateGuestDataToCloud(userId); } catch (e) {
+          console.warn("[auth] migration failed:", e?.message);
+        }
+      }
+      prevUserIdRef.current = userId;
+
+      const [favs, ans, ct, overrides] = await Promise.all([
+        getFavorites(userId),
+        getAnswers(userId),
+        getCustomTags(userId),
+        getQuestionTagOverrides(userId),
+      ]);
+      if (cancelled) return;
+      setFavorites(favs);
+      setAnswers(ans);
+      setCustomTags(ct);
+      setTagOverrides(overrides);
+    }
+    refresh();
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  // ── Rebuild deck whenever the pool, filter, or overrides change ────────────
+  useEffect(() => {
+    setDeck(getQuestions({
+      questions: allQuestions,
+      category: activeCategory,
+      tag: activeTag,
+      tagOverrides,
+    }));
     setCurrentIndex(0);
-  }, [tagOverrides]);
+  }, [allQuestions, activeCategory, activeTag, tagOverrides]);
 
+  // ── Filter ──────────────────────────────────────────────────────────────────
   const selectCategory = useCallback((category) => {
     setActiveCategory(category);
     setActiveTag(null);
     setView("cards");
-    rebuildDeck({ category });
-  }, [rebuildDeck]);
+  }, []);
 
   const selectTag = useCallback((tag) => {
     setActiveTag(tag);
     setActiveCategory(null);
     setView("cards");
-    rebuildDeck({ tag });
-  }, [rebuildDeck]);
+  }, []);
 
   const clearFilter = useCallback(() => {
     setActiveCategory(null);
     setActiveTag(null);
     setView("cards");
-    rebuildDeck({});
-  }, [rebuildDeck]);
+  }, []);
 
   // ── View ────────────────────────────────────────────────────────────────────
-
   const openView = useCallback((v) => setView(v), []);
   const closeView = useCallback(() => setView("cards"), []);
 
   // ── Deck navigation ─────────────────────────────────────────────────────────
-
   const nextQuestion = useCallback(() => {
     setCurrentIndex((i) => {
       if (i < deck.length - 1) return i + 1;
       // Reshuffle when deck is exhausted
-      setDeck(getQuestions({ category: activeCategory, tag: activeTag, tagOverrides }));
+      setDeck(getQuestions({
+        questions: allQuestions,
+        category: activeCategory,
+        tag: activeTag,
+        tagOverrides,
+      }));
       return 0;
     });
-  }, [deck.length, activeCategory, activeTag, tagOverrides]);
+  }, [deck.length, allQuestions, activeCategory, activeTag, tagOverrides]);
 
   const prevQuestion = useCallback(() => {
     setCurrentIndex((i) => Math.max(0, i - 1));
@@ -94,61 +188,50 @@ export function AppProvider({ children }) {
 
   const currentQuestion = deck[currentIndex] ?? null;
 
-  // ── Favorites ────────────────────────────────────────────────────────────────
-
-  const toggleFavorite = useCallback((questionId) => {
-    toggleFav(questionId);
-    setFavorites(getFavorites());
-  }, []);
+  // ── Favorites ──────────────────────────────────────────────────────────────
+  const toggleFavorite = useCallback(async (questionId) => {
+    await toggleFav(userId, questionId);
+    setFavorites(await getFavorites(userId));
+  }, [userId]);
 
   const isFavorite = useCallback(
     (questionId) => favorites.has(questionId),
-    [favorites]
+    [favorites],
   );
 
   const favoriteQuestions = useMemo(
-    () => QUESTIONS.filter((q) => favorites.has(q.id)),
-    [favorites]
+    () => allQuestions.filter((q) => favorites.has(q.id)),
+    [favorites, allQuestions],
   );
 
-  // ── Answers ──────────────────────────────────────────────────────────────────
+  // ── Answers ────────────────────────────────────────────────────────────────
+  const saveAnswer = useCallback(async (questionId, payload) => {
+    await persistAnswer(userId, questionId, payload);
+    setAnswers(await getAnswers(userId));
+  }, [userId]);
 
-  const saveAnswer = useCallback((questionId, payload) => {
-    persistAnswer(questionId, payload);
-    setAnswers(getAnswers());
-  }, []);
-
-  const deleteAnswer = useCallback((questionId) => {
-    removeAnswer(questionId);
-    setAnswers(getAnswers());
-  }, []);
+  const deleteAnswer = useCallback(async (questionId) => {
+    await removeAnswer(userId, questionId);
+    setAnswers(await getAnswers(userId));
+  }, [userId]);
 
   const getAnswer = useCallback(
     (questionId) => answers[questionId] || null,
-    [answers]
+    [answers],
   );
 
-  // ── Tags ────────────────────────────────────────────────────────────────────
-
-  /**
-   * Tags actually present in the live data + any user-created tags. Used to
-   * populate the filter strip and the tag picker.
-   * Each entry: { slug, label, count, isCustom }
-   */
+  // ── Tags ───────────────────────────────────────────────────────────────────
   const allTags = useMemo(() => {
-    const builtInSlugs = getBuiltInTagSlugs();
+    const builtInSlugs = getBuiltInTagSlugs(allQuestions);
     const customSlugs = Object.keys(customTags);
-    // Include any slug we have a label for — keeps friendly built-ins available
-    // in the picker even if a user has removed them from every question.
     const seen = new Set([
       ...builtInSlugs,
       ...customSlugs,
       ...Object.keys(BUILT_IN_TAG_LABELS),
     ]);
 
-    // Count usage across the live (override-aware) data
     const counts = {};
-    for (const q of QUESTIONS) {
+    for (const q of allQuestions) {
       const tags = effectiveTagsFor(q, tagOverrides);
       for (const t of tags) {
         counts[t] = (counts[t] || 0) + 1;
@@ -162,59 +245,120 @@ export function AppProvider({ children }) {
       count: counts[slug] || 0,
       isCustom: !BUILT_IN_TAG_LABELS[slug] && !builtInSlugs.has(slug),
     })).sort((a, b) => a.label.localeCompare(b.label));
-  }, [customTags, tagOverrides]);
+  }, [customTags, tagOverrides, allQuestions]);
 
   const getTagsForQuestion = useCallback(
     (question) => effectiveTagsFor(question, tagOverrides),
-    [tagOverrides]
+    [tagOverrides],
   );
 
-  const setTagsForQuestion = useCallback((questionId, tagSlugs) => {
-    persistQuestionTags(questionId, tagSlugs);
-    setTagOverrides(getQuestionTagOverrides());
-  }, []);
+  const setTagsForQuestion = useCallback(async (questionId, tagSlugs) => {
+    await persistQuestionTags(userId, questionId, tagSlugs);
+    setTagOverrides(await getQuestionTagOverrides(userId));
+  }, [userId]);
 
-  /**
-   * Creates a custom tag from a free-text label and returns its slug.
-   * If the slug already exists (built-in or custom), it's returned as-is.
-   */
-  const createTag = useCallback((label) => {
+  const createTag = useCallback(async (label) => {
     const trimmed = String(label).trim();
     if (!trimmed) return null;
     const slug = slugify(trimmed);
     if (!slug) return null;
-    // Only register as custom if it's not already a built-in
-    if (!BUILT_IN_TAG_LABELS[slug] && !getBuiltInTagSlugs().has(slug)) {
-      saveCustomTag(slug, trimmed);
-      setCustomTags(getCustomTags());
+    const builtIn = getBuiltInTagSlugs(allQuestions);
+    if (!BUILT_IN_TAG_LABELS[slug] && !builtIn.has(slug)) {
+      await saveCustomTag(userId, slug, trimmed);
+      setCustomTags(await getCustomTags(userId));
     }
     return slug;
-  }, []);
+  }, [userId, allQuestions]);
 
-  const deleteCustomTag = useCallback((slug) => {
-    removeCustomTag(slug);
-    setCustomTags(getCustomTags());
-    // Also remove this tag from any per-question overrides
-    const overrides = getQuestionTagOverrides();
-    let changed = false;
+  const deleteCustomTag = useCallback(async (slug) => {
+    await removeCustomTag(userId, slug);
+    setCustomTags(await getCustomTags(userId));
+    // Cascade: strip tag from any per-question overrides
+    const overrides = await getQuestionTagOverrides(userId);
     for (const qid of Object.keys(overrides)) {
       if (overrides[qid].includes(slug)) {
-        overrides[qid] = overrides[qid].filter((t) => t !== slug);
-        persistQuestionTags(qid, overrides[qid]);
-        changed = true;
+        await persistQuestionTags(userId, qid, overrides[qid].filter((t) => t !== slug));
       }
     }
-    if (changed) setTagOverrides(getQuestionTagOverrides());
+    setTagOverrides(await getQuestionTagOverrides(userId));
     if (activeTag === slug) clearFilter();
-  }, [activeTag, clearFilter]);
+  }, [userId, activeTag, clearFilter]);
 
-  // ── Stats ─────────────────────────────────────────────────────────────────────
+  // ── Profile: fetched whenever user changes; used by Welcome flow ───────────
+  const refreshProfile = useCallback(async () => {
+    if (!userId || !supabase) {
+      setProfile(null);
+      return null;
+    }
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) {
+      console.warn("[profile] refresh:", error.message);
+      return null;
+    }
+    setProfile(data ?? null);
+    return data ?? null;
+  }, [userId]);
 
-  const stats = useMemo(() => getStats(QUESTIONS), [answers, favorites]);
+  useEffect(() => { refreshProfile(); }, [refreshProfile]);
 
-  // ── Context value ─────────────────────────────────────────────────────────────
+  // ── Inbox badge: fetch count + subscribe to realtime changes ───────────────
+  const refreshInbox = useCallback(async () => {
+    if (!userId) {
+      setUnreadInboxCount(0);
+      return;
+    }
+    setUnreadInboxCount(await getUnreadCount(userId));
+  }, [userId]);
 
+  useEffect(() => {
+    if (!userId) {
+      setUnreadInboxCount(0);
+      return;
+    }
+    refreshInbox();
+    const unsub = subscribeToInbox(userId, () => { refreshInbox(); });
+    return unsub;
+  }, [userId, refreshInbox]);
+
+  // ── Auth actions ───────────────────────────────────────────────────────────
+  const signInWithGoogle = useCallback(async () => {
+    if (!supabase) throw new Error("Sign-in is unavailable: Supabase not configured");
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) throw error;
+  }, []);
+
+  const signOut = useCallback(async () => {
+    if (!supabase) return;
+    // Reset the welcome dismissal so the screen re-appears on next load.
+    try { localStorage.removeItem("qgame_welcome_dismissed"); } catch {}
+    await supabase.auth.signOut();
+  }, []);
+
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  const stats = useMemo(
+    () => deriveStats(allQuestions, answers, favorites),
+    [allQuestions, answers, favorites],
+  );
+
+  // ── Context value ──────────────────────────────────────────────────────────
   const value = {
+    // Auth
+    user,
+    authReady,
+    profile,
+    refreshProfile,
+    isCloudEnabled: !!supabase,
+    signInWithGoogle,
+    signOut,
+    // Questions
+    allQuestions,
     // Deck
     deck,
     currentIndex,
@@ -248,6 +392,9 @@ export function AppProvider({ children }) {
     setTagsForQuestion,
     createTag,
     deleteCustomTag,
+    // Inbox
+    unreadInboxCount,
+    refreshInbox,
     // Stats
     stats,
   };

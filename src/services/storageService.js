@@ -1,16 +1,19 @@
 /**
- * Q Game - Storage Service
+ * Q Game - Storage Service (routing seam)
  *
- * This is the ONLY file that touches localStorage.
- * When you're ready to add Firebase, replace the implementations
- * here and the rest of the app needs zero changes.
+ * Every storage function takes `userId` (or null) as its first argument and
+ * routes to either:
+ *   • cloudStorage (Supabase)   when userId is a signed-in user
+ *   • localStorage              when userId is null (guest mode)
  *
- * Firebase migration path:
- *   1. npm install firebase
- *   2. Create src/services/firebase.js with your config
- *   3. Replace localStorage calls below with Firestore calls
- *   4. Add auth.currentUser.uid to scope data per-user
+ * All functions return Promises so callers can `await` regardless of path —
+ * this lets AppContext use a single code path.
+ *
+ * Device-only state (Seen, Settings) stays in localStorage unconditionally —
+ * those are per-device, not per-user.
  */
+
+import * as cloud from "./cloudStorage";
 
 const KEYS = {
   FAVORITES: "qgame_favorites",
@@ -21,7 +24,7 @@ const KEYS = {
   QUESTION_TAGS: "qgame_question_tags",
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── localStorage helpers ─────────────────────────────────────────────────────
 
 function read(key, fallback) {
   try {
@@ -41,79 +44,104 @@ function write(key, value) {
   }
 }
 
-// ── Favorites ─────────────────────────────────────────────────────────────────
+// ── Favorites ────────────────────────────────────────────────────────────────
 
-/**
- * Returns Set of favorited question IDs.
- * Firebase equivalent: getDocs(query(collection(db, "favorites"), where("userId", "==", uid)))
- */
-export function getFavorites() {
+export async function getFavorites(userId) {
+  if (userId) return cloud.getFavorites(userId);
   return new Set(read(KEYS.FAVORITES, []));
 }
 
-/**
- * Toggles a question's favorite status.
- * @param {string} questionId
- * @returns {boolean} new favorite state
- */
-export function toggleFavorite(questionId) {
-  const favs = getFavorites();
-  if (favs.has(questionId)) {
-    favs.delete(questionId);
-  } else {
-    favs.add(questionId);
-  }
+export async function toggleFavorite(userId, questionId) {
+  if (userId) return cloud.toggleFavorite(userId, questionId);
+  const favs = new Set(read(KEYS.FAVORITES, []));
+  const next = favs.has(questionId) ? (favs.delete(questionId), false) : (favs.add(questionId), true);
   write(KEYS.FAVORITES, Array.from(favs));
-  return favs.has(questionId);
+  return next;
 }
 
-export function isFavorite(questionId) {
-  return getFavorites().has(questionId);
-}
+// ── Answers ──────────────────────────────────────────────────────────────────
 
-// ── Answers ───────────────────────────────────────────────────────────────────
-
-/**
- * Returns map of { questionId: { text, timestamp } }
- * Firebase equivalent: getDocs(query(collection(db, "answers"), where("userId", "==", uid)))
- */
-export function getAnswers() {
+export async function getAnswers(userId) {
+  if (userId) return cloud.getAnswers(userId);
   return read(KEYS.ANSWERS, {});
 }
 
-/**
- * Saves a user's answer to a question.
- * @param {string} questionId
- * @param {{ text?: string, choice?: string | null }} payload
- */
-export function saveAnswer(questionId, payload) {
-  const answers = getAnswers();
+export async function saveAnswer(userId, questionId, payload) {
+  if (userId) return cloud.saveAnswer(userId, questionId, payload);
+  const answers = read(KEYS.ANSWERS, {});
   const text = (payload?.text ?? "").trim();
   const choice = payload?.choice ?? null;
-  answers[questionId] = {
-    text,
-    choice,
-    timestamp: Date.now(),
-  };
+  answers[questionId] = { text, choice, timestamp: Date.now() };
   write(KEYS.ANSWERS, answers);
 }
 
-export function deleteAnswer(questionId) {
-  const answers = getAnswers();
+export async function deleteAnswer(userId, questionId) {
+  if (userId) return cloud.deleteAnswer(userId, questionId);
+  const answers = read(KEYS.ANSWERS, {});
   delete answers[questionId];
   write(KEYS.ANSWERS, answers);
 }
 
-export function getAnswer(questionId) {
-  return getAnswers()[questionId] || null;
+// ── Custom Tags ──────────────────────────────────────────────────────────────
+
+export async function getCustomTags(userId) {
+  if (userId) return cloud.getCustomTags(userId);
+  return read(KEYS.CUSTOM_TAGS, {});
 }
 
-// ── Seen Questions ────────────────────────────────────────────────────────────
+export async function saveCustomTag(userId, slug, label) {
+  if (userId) return cloud.saveCustomTag(userId, slug, label);
+  const tags = read(KEYS.CUSTOM_TAGS, {});
+  tags[slug] = { label, createdAt: tags[slug]?.createdAt ?? Date.now() };
+  write(KEYS.CUSTOM_TAGS, tags);
+}
+
+export async function deleteCustomTag(userId, slug) {
+  if (userId) return cloud.deleteCustomTag(userId, slug);
+  const tags = read(KEYS.CUSTOM_TAGS, {});
+  delete tags[slug];
+  write(KEYS.CUSTOM_TAGS, tags);
+}
+
+// ── Per-question tag overrides ───────────────────────────────────────────────
+
+export async function getQuestionTagOverrides(userId) {
+  if (userId) return cloud.getQuestionTagOverrides(userId);
+  return read(KEYS.QUESTION_TAGS, {});
+}
+
+export async function setQuestionTags(userId, questionId, tagSlugs) {
+  if (userId) return cloud.setQuestionTags(userId, questionId, tagSlugs);
+  const overrides = read(KEYS.QUESTION_TAGS, {});
+  overrides[questionId] = Array.from(new Set(tagSlugs));
+  write(KEYS.QUESTION_TAGS, overrides);
+}
+
+// ── Guest → cloud migration (auto on first sign-in) ──────────────────────────
 
 /**
- * Tracks which questions the user has already seen in the current "deck".
- * Reset when they've gone through all questions in a category.
+ * Reads all local guest data and copies it to the user's cloud rows. Idempotent.
+ * Returns true if anything was migrated.
  */
+export async function migrateGuestDataToCloud(userId) {
+  const local = {
+    favorites: read(KEYS.FAVORITES, []),
+    answers: read(KEYS.ANSWERS, {}),
+    customTags: read(KEYS.CUSTOM_TAGS, {}),
+    questionTagOverrides: read(KEYS.QUESTION_TAGS, {}),
+  };
+  const hasAny =
+    local.favorites.length > 0 ||
+    Object.keys(local.answers).length > 0 ||
+    Object.keys(local.customTags).length > 0 ||
+    Object.keys(local.questionTagOverrides).length > 0;
+  if (!hasAny) return false;
+  await cloud.migrateGuestData(userId, local);
+  return true;
+}
+
+// ── Seen Questions (device-only) ─────────────────────────────────────────────
+
 export function getSeenIds() {
   return new Set(read(KEYS.SEEN, []));
 }
@@ -128,7 +156,7 @@ export function resetSeen() {
   write(KEYS.SEEN, []);
 }
 
-// ── Settings ──────────────────────────────────────────────────────────────────
+// ── Settings (device-only) ───────────────────────────────────────────────────
 
 const DEFAULT_SETTINGS = {
   showAnsweredBadge: true,
@@ -145,70 +173,15 @@ export function saveSetting(key, value) {
   write(KEYS.SETTINGS, settings);
 }
 
-// ── Custom Tags ───────────────────────────────────────────────────────────────
+// ── Stats (derived, no extra storage needed) ─────────────────────────────────
 
-/**
- * Returns a map of user-created tags: { [slug]: { label, createdAt } }.
- * Firebase equivalent: getDocs(collection(db, "userTags"))
- */
-export function getCustomTags() {
-  return read(KEYS.CUSTOM_TAGS, {});
-}
-
-/**
- * Persists a custom tag. Overwrites existing entry with same slug.
- * @param {string} slug
- * @param {string} label
- */
-export function saveCustomTag(slug, label) {
-  const tags = getCustomTags();
-  tags[slug] = {
-    label,
-    createdAt: tags[slug]?.createdAt ?? Date.now(),
-  };
-  write(KEYS.CUSTOM_TAGS, tags);
-}
-
-export function deleteCustomTag(slug) {
-  const tags = getCustomTags();
-  delete tags[slug];
-  write(KEYS.CUSTOM_TAGS, tags);
-}
-
-// ── Per-question Tag Overrides ────────────────────────────────────────────────
-
-/**
- * Returns a map of { [questionId]: string[] } — when present, the user's tag
- * list fully replaces the data's tag list for that question.
- */
-export function getQuestionTagOverrides() {
-  return read(KEYS.QUESTION_TAGS, {});
-}
-
-/**
- * Saves the effective tag list for a question. Pass [] to record an empty
- * override (signals "user removed all tags").
- * @param {string} questionId
- * @param {string[]} tagSlugs
- */
-export function setQuestionTags(questionId, tagSlugs) {
-  const overrides = getQuestionTagOverrides();
-  overrides[questionId] = Array.from(new Set(tagSlugs));
-  write(KEYS.QUESTION_TAGS, overrides);
-}
-
-// ── Stats (derived, no extra storage needed) ──────────────────────────────────
-
-export function getStats(allQuestions) {
-  const answers = getAnswers();
-  const favorites = getFavorites();
-
+export function deriveStats(allQuestions, answers, favorites) {
   return {
     totalQuestions: allQuestions.length,
     answered: Object.keys(answers).length,
     favorites: favorites.size,
-    percentComplete: Math.round(
-      (Object.keys(answers).length / allQuestions.length) * 100
-    ),
+    percentComplete: allQuestions.length
+      ? Math.round((Object.keys(answers).length / allQuestions.length) * 100)
+      : 0,
   };
 }

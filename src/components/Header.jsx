@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useKeyPress } from "../hooks";
+import LogoMark from "./LogoMark";
 import styles from "./Header.module.css";
 
 export default function Header({
@@ -8,8 +9,10 @@ export default function Header({
   onThemeToggle,
   onFavoritesOpen,
   onInstallOpen,
+  onAccountOpen,
+  onInboxOpen,
 }) {
-  const { favoriteQuestions, openView } = useApp();
+  const { favoriteQuestions, openView, user, unreadInboxCount } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef(null);
 
@@ -33,7 +36,9 @@ export default function Header({
   return (
     <header className={styles.header}>
       <div className={styles.logo}>
-        <span className={styles.logoQ}>Q</span>
+        <span className={styles.logoMark}>
+          <LogoMark size={28} strokeWidth={12} title="Q Game" />
+        </span>
         <span className={styles.logoGame}>Game</span>
       </div>
 
@@ -66,6 +71,28 @@ export default function Header({
             </svg>
           )}
         </button>
+
+        {/* Inbox (signed-in only) */}
+        {user && (
+          <button
+            className={styles.iconBtn}
+            onClick={onInboxOpen}
+            aria-label="Open inbox"
+            title="Inbox"
+          >
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+              <path
+                d="M3 5l9 7 9-7M3 5v12a2 2 0 002 2h14a2 2 0 002-2V5M3 5h18"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {unreadInboxCount > 0 && (
+              <span className={styles.badge}>{unreadInboxCount}</span>
+            )}
+          </button>
+        )}
 
         {/* Favorites */}
         <button
@@ -157,6 +184,20 @@ export default function Header({
                   <path d="M4 20h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
                 Get App
+              </button>
+              <button
+                className={styles.menuItem}
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onAccountOpen();
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8"/>
+                  <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+                {user ? "Account" : "Sign in"}
               </button>
             </div>
           )}

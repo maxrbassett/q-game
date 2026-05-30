@@ -4,13 +4,12 @@ import { CATEGORIES } from "../data/questions";
 import styles from "./StatsPanel.module.css";
 
 export default function StatsPanel({ onClose }) {
-  const { stats, answers, favorites } = useApp();
+  const { stats, answers, allQuestions } = useApp();
 
   // Count answers per category
-  const { QUESTIONS } = require("../data/questions");
   const byCat = Object.values(CATEGORIES).map((cat) => {
-    const total = QUESTIONS.filter((q) => q.category === cat).length;
-    const answered = QUESTIONS.filter(
+    const total = allQuestions.filter((q) => q.category === cat).length;
+    const answered = allQuestions.filter(
       (q) => q.category === cat && answers[q.id]
     ).length;
     return { cat, total, answered };
