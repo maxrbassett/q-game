@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useKeyPress } from "../hooks";
-import { searchUsernames, sendQuestion } from "../services/inboxService";
+import { searchUsernames, startRound } from "../services/gameService";
+import { getChoices } from "../data/choices";
 import styles from "./SendModal.module.css";
 
-export default function SendModal({ question, onClose }) {
+export default function SendModal({ question, answer, onClose }) {
   const { user } = useApp();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -15,6 +16,11 @@ export default function SendModal({ question, onClose }) {
   const [error, setError] = useState("");
   const [sentTo, setSentTo] = useState(null);
   const inputRef = useRef(null);
+
+  const choices = question ? getChoices(question) : null;
+  const answerLabel =
+    answer?.choice ??
+    (answer?.text?.trim() ? `“${answer.text.trim()}”` : "—");
 
   useKeyPress("Escape", onClose);
 
@@ -61,7 +67,7 @@ export default function SendModal({ question, onClose }) {
     setSending(true);
     setError("");
     try {
-      await sendQuestion(user.id, picked.id, question.id, note);
+      await startRound(user.id, picked.id, question.id, answer ?? {}, note);
       setSentTo(picked);
     } catch (err) {
       setError(err?.message ?? "Failed to send.");
@@ -82,7 +88,10 @@ export default function SendModal({ question, onClose }) {
               </svg>
             </div>
             <p className={styles.successText}>
-              Sent to <span className={styles.username}>@{sentTo.username}</span>
+              Round started with <span className={styles.username}>@{sentTo.username}</span>
+            </p>
+            <p className={styles.successSub}>
+              They'll guess your answer, then it comes back for you to guess theirs.
             </p>
             <button className={styles.primaryBtn} onClick={onClose}>Done</button>
           </div>
@@ -96,7 +105,7 @@ export default function SendModal({ question, onClose }) {
       <div className={styles.modal} role="dialog" aria-label="Send question">
         <div className={styles.handle} />
         <div className={styles.header}>
-          <h2 className={styles.title}>Send to a friend</h2>
+          <h2 className={styles.title}>Start a round</h2>
           <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
@@ -107,7 +116,11 @@ export default function SendModal({ question, onClose }) {
         {question && (
           <div className={styles.preview}>
             <div className={styles.previewCategory}>{question.category}</div>
-            <p className={styles.previewText}>{question.text}</p>
+            <p className={styles.previewText}>{choices?.displayText ?? question.text}</p>
+            <div className={styles.previewAnswer}>
+              <span className={styles.previewAnswerLabel}>Your answer (they'll guess it)</span>
+              <span className={styles.previewAnswerValue}>{answerLabel}</span>
+            </div>
           </div>
         )}
 

@@ -45,7 +45,7 @@ import {
   getBuiltInTagSlugs,
   BUILT_IN_TAG_LABELS,
 } from "../data/tags";
-import { getUnreadCount, subscribeToInbox } from "../services/inboxService";
+import { getYourTurnCount, subscribeToRounds } from "../services/gameService";
 
 const AppContext = createContext(null);
 
@@ -72,8 +72,8 @@ export function AppProvider({ children }) {
   const [deck, setDeck] = useState(() => getQuestions({ questions: QUESTIONS }));
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // ── Inbox (Phase 2) ─────────────────────────────────────────────────────────
-  const [unreadInboxCount, setUnreadInboxCount] = useState(0);
+  // ── Games (Phase 3): rounds where it's this user's move ─────────────────────
+  const [yourTurnCount, setYourTurnCount] = useState(0);
 
   const userId = user?.id ?? null;
 
@@ -305,24 +305,24 @@ export function AppProvider({ children }) {
 
   useEffect(() => { refreshProfile(); }, [refreshProfile]);
 
-  // ── Inbox badge: fetch count + subscribe to realtime changes ───────────────
-  const refreshInbox = useCallback(async () => {
+  // ── Your-turn badge: fetch count + subscribe to realtime round changes ─────
+  const refreshGames = useCallback(async () => {
     if (!userId) {
-      setUnreadInboxCount(0);
+      setYourTurnCount(0);
       return;
     }
-    setUnreadInboxCount(await getUnreadCount(userId));
+    setYourTurnCount(await getYourTurnCount(userId));
   }, [userId]);
 
   useEffect(() => {
     if (!userId) {
-      setUnreadInboxCount(0);
+      setYourTurnCount(0);
       return;
     }
-    refreshInbox();
-    const unsub = subscribeToInbox(userId, () => { refreshInbox(); });
+    refreshGames();
+    const unsub = subscribeToRounds(userId, () => { refreshGames(); });
     return unsub;
-  }, [userId, refreshInbox]);
+  }, [userId, refreshGames]);
 
   // ── Auth actions ───────────────────────────────────────────────────────────
   const signInWithGoogle = useCallback(async () => {
@@ -392,9 +392,9 @@ export function AppProvider({ children }) {
     setTagsForQuestion,
     createTag,
     deleteCustomTag,
-    // Inbox
-    unreadInboxCount,
-    refreshInbox,
+    // Games
+    yourTurnCount,
+    refreshGames,
     // Stats
     stats,
   };
