@@ -274,8 +274,9 @@
   transition: transform 0.2s var(--ease-spring), color 0.2s, background 0.2s;
 }
 
-.sendBtn:hover { color: var(--accent); transform: scale(1.1); background: var(--surface); }
-.sendBtn:active { transform: scale(0.95); }
+.sendBtn:hover:not(:disabled) { color: var(--accent); transform: scale(1.1); background: var(--surface); }
+.sendBtn:active:not(:disabled) { transform: scale(0.95); }
+.sendBtn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .favBtn {
   width: 48px;

@@ -10,9 +10,9 @@ export default function Header({
   onFavoritesOpen,
   onInstallOpen,
   onAccountOpen,
-  onInboxOpen,
+  onGamesOpen,
 }) {
-  const { favoriteQuestions, openView, user, unreadInboxCount } = useApp();
+  const { favoriteQuestions, openView, user, yourTurnCount } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef(null);
 
@@ -72,24 +72,25 @@ export default function Header({
           )}
         </button>
 
-        {/* Inbox (signed-in only) */}
+        {/* Games (signed-in only) */}
         {user && (
           <button
             className={styles.iconBtn}
-            onClick={onInboxOpen}
-            aria-label="Open inbox"
-            title="Inbox"
+            onClick={onGamesOpen}
+            aria-label="Open games"
+            title="Games"
           >
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-              <path
-                d="M3 5l9 7 9-7M3 5v12a2 2 0 002 2h14a2 2 0 002-2V5M3 5h18"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-              />
+              <rect x="3" y="3" width="18" height="18" rx="4"
+                stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+              <circle cx="8.5" cy="8.5" r="1.4" fill="currentColor" />
+              <circle cx="15.5" cy="8.5" r="1.4" fill="currentColor" />
+              <circle cx="12" cy="12" r="1.4" fill="currentColor" />
+              <circle cx="8.5" cy="15.5" r="1.4" fill="currentColor" />
+              <circle cx="15.5" cy="15.5" r="1.4" fill="currentColor" />
             </svg>
-            {unreadInboxCount > 0 && (
-              <span className={styles.badge}>{unreadInboxCount}</span>
+            {yourTurnCount > 0 && (
+              <span className={styles.badge}>{yourTurnCount}</span>
             )}
           </button>
         )}

@@ -245,8 +245,9 @@ export default function QuestionCard() {
               <button
                 className={styles.sendBtn}
                 onClick={() => setSendOpen(true)}
-                aria-label="Send to a friend"
-                title="Send to a friend"
+                disabled={!hasAnswer}
+                aria-label="Start a round with a friend"
+                title={hasAnswer ? "Start a round with a friend" : "Answer first, then start a round"}
               >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                   <path d="M22 2L11 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -283,6 +284,7 @@ export default function QuestionCard() {
       {sendOpen && (
         <SendModal
           question={currentQuestion}
+          answer={{ text: answerText, choice: selectedChoice }}
           onClose={() => setSendOpen(false)}
         />
       )}
