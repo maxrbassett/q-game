@@ -1,17 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useKeyPress } from "../hooks";
-import { searchUsernames, startRound } from "../services/gameService";
+import { listUsers, startRound } from "../services/gameService";
 import { getChoices } from "../data/choices";
 import styles from "./SendModal.module.css";
 
 export default function SendModal({ question, answer, onClose }) {
   const { user } = useApp();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [focused, setFocused] = useState(false);
   const [picked, setPicked] = useState(null); // { id, username, displayName }
   const [note, setNote] = useState("");
-  const [searching, setSearching] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [sentTo, setSentTo] = useState(null);
@@ -24,36 +25,31 @@ export default function SendModal({ question, answer, onClose }) {
 
   useKeyPress("Escape", onClose);
 
+  // Load the full user list once so the dropdown can show everyone up front.
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  // Debounced username search
-  useEffect(() => {
-    if (picked) return; // don't search while a recipient is locked in
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      return;
-    }
     let cancelled = false;
-    setSearching(true);
-    const t = setTimeout(async () => {
-      const found = await searchUsernames(q, user?.id);
+    listUsers(user?.id).then((list) => {
       if (cancelled) return;
-      setResults(found);
-      setSearching(false);
-    }, 250);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [query, picked, user?.id]);
+      setAllUsers(list);
+      setLoadingUsers(false);
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  // Filter the loaded list client-side as you type (matches username or name).
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? allUsers.filter(
+        (p) =>
+          p.username.toLowerCase().includes(q) ||
+          (p.displayName && p.displayName.toLowerCase().includes(q)),
+      )
+    : allUsers;
 
   const handlePick = (person) => {
     setPicked(person);
     setQuery(`@${person.username}`);
-    setResults([]);
+    setFocused(false);
   };
 
   const handleClearPicked = () => {
@@ -144,25 +140,33 @@ export default function SendModal({ question, answer, onClose }) {
               <input
                 ref={inputRef}
                 className={styles.input}
-                placeholder="username"
+                placeholder="search or pick a friend"
                 value={query.replace(/^@/, "")}
                 onChange={(e) => setQuery(e.target.value.toLowerCase())}
+                onFocus={() => setFocused(true)}
+                // Delay so a click on a result registers before the list closes.
+                onBlur={() => setTimeout(() => setFocused(false), 150)}
                 autoCapitalize="off"
                 autoCorrect="off"
                 spellCheck={false}
               />
             </div>
-            {query.trim().length >= 2 && (
+            {focused && (
               <div className={styles.results}>
-                {searching && <div className={styles.resultsHint}>Searching…</div>}
-                {!searching && results.length === 0 && (
-                  <div className={styles.resultsHint}>No users found.</div>
+                {loadingUsers && <div className={styles.resultsHint}>Loading…</div>}
+                {!loadingUsers && allUsers.length === 0 && (
+                  <div className={styles.resultsHint}>No other users yet.</div>
                 )}
-                {results.map((p) => (
+                {!loadingUsers && allUsers.length > 0 && filtered.length === 0 && (
+                  <div className={styles.resultsHint}>No matches.</div>
+                )}
+                {filtered.map((p) => (
                   <button
                     key={p.id}
+                    type="button"
                     className={styles.resultRow}
-                    onClick={() => handlePick(p)}
+                    // onMouseDown fires before input blur, so the pick isn't lost.
+                    onMouseDown={(e) => { e.preventDefault(); handlePick(p); }}
                   >
                     <span className={styles.resultUsername}>@{p.username}</span>
                     {p.displayName && (

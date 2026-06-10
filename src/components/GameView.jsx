@@ -117,14 +117,15 @@ export default function GameView({ round, onClose, onSubmitted }) {
           <p className={styles.question}>{choices?.displayText ?? q?.text ?? "(question unavailable)"}</p>
 
           {done ? (
-            <DoneScreen opponent={opponent} />
+            <DoneScreen opponent={opponent} onClose={onClose} />
           ) : flow === "recap" ? (
             <Recap
               round={round} hasChoices={hasChoices}
               aName={aName} bName={bName} aPoss={aPoss} bPoss={bPoss}
+              onClose={onClose}
             />
           ) : flow === "waiting" ? (
-            <Waiting role={role} round={round} opponent={opponent} />
+            <Waiting role={role} round={round} opponent={opponent} onClose={onClose} />
           ) : flow === "bturn" ? (
             <BTurn
               step={step} setStep={setStep}
@@ -150,6 +151,7 @@ export default function GameView({ round, onClose, onSubmitted }) {
               localGuess={localGuess}
               guessReady={guessReady}
               busy={busy} onFinish={finishAGuess}
+              onClose={onClose}
             />
           )}
 
@@ -246,7 +248,7 @@ function BTurn({
 function ATurn({
   step, setStep, round, choices, hasChoices, bName, bPoss,
   guessChoice, setGuessChoice, guessText, setGuessText, setGuessSkipped,
-  localGuess, guessReady, busy, onFinish,
+  localGuess, guessReady, busy, onFinish, onClose,
 }) {
   if (step === "seeGuess") {
     const bGuessedRight = guessVerdict(round.bGuess, round.aAnswer);
@@ -314,13 +316,14 @@ function ATurn({
       )}
       <AnswerCard label={`${bName} actually said`} answer={round.bAnswer} hasChoices={hasChoices} highlight />
       <Banner kind="done">Round complete — saved to your archive.</Banner>
+      <BackButton onClick={onClose} />
     </>
   );
 }
 
 // ── Waiting (not your turn, not complete) ─────────────────────────────────────
 
-function Waiting({ role, round, opponent }) {
+function Waiting({ role, round, opponent, onClose }) {
   const msg = round.status === "awaiting_b"
     ? `Waiting for ${opponent} to guess your answer.`
     : `Waiting for ${opponent} to guess your answer back.`;
@@ -329,13 +332,14 @@ function Waiting({ role, round, opponent }) {
       <div className={styles.waitingIcon}>⏳</div>
       <p className={styles.waitingText}>{msg}</p>
       <p className={styles.waitingSub}>You'll be nudged when it's your move.</p>
+      <BackButton onClick={onClose} />
     </div>
   );
 }
 
 // ── Recap (complete) ──────────────────────────────────────────────────────────
 
-function Recap({ round, hasChoices, aName, bName, aPoss, bPoss }) {
+function Recap({ round, hasChoices, aName, bName, aPoss, bPoss, onClose }) {
   const bOnA = guessVerdict(round.bGuess, round.aAnswer); // did B read A right?
   const aOnB = guessVerdict(round.aGuess, round.bAnswer); // did A read B right?
   return (
@@ -358,13 +362,14 @@ function Recap({ round, hasChoices, aName, bName, aPoss, bPoss }) {
         verdict={aOnB}
         muted
       />
+      <BackButton onClick={onClose} />
     </>
   );
 }
 
 // ── Done confirmation (after submitting B's turn) ─────────────────────────────
 
-function DoneScreen({ opponent }) {
+function DoneScreen({ opponent, onClose }) {
   return (
     <div className={styles.waiting}>
       <div className={styles.doneIcon}>
@@ -374,7 +379,19 @@ function DoneScreen({ opponent }) {
       </div>
       <p className={styles.waitingText}>Sent back to {opponent}.</p>
       <p className={styles.waitingSub}>They'll see how you did and guess your answer next.</p>
+      <BackButton onClick={onClose} />
     </div>
+  );
+}
+
+function BackButton({ onClick }) {
+  return (
+    <button className={styles.backBtn} onClick={onClick}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+      Back to games
+    </button>
   );
 }
 

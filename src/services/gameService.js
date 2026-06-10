@@ -203,6 +203,31 @@ export async function searchUsernames(query, selfId) {
   }));
 }
 
+/**
+ * Every user with a claimed username (except the caller), alphabetical. Used to
+ * populate the recipient dropdown so you can pick a friend without typing —
+ * fine while the user base is small; the recipient picker filters client-side.
+ */
+export async function listUsers(selfId, limit = 100) {
+  ready();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, username, display_name")
+    .not("id", "eq", selfId)
+    .not("username", "is", null)
+    .order("username", { ascending: true })
+    .limit(limit);
+  if (error) {
+    console.warn("[game] listUsers:", error.message);
+    return [];
+  }
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    username: p.username,
+    displayName: p.display_name ?? null,
+  }));
+}
+
 // ── Lists ────────────────────────────────────────────────────────────────────
 
 /**

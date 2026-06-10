@@ -24,7 +24,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 18px;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 18px 14px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -225,6 +225,25 @@
 }
 .ghostBtn:hover { color: var(--ink); }
 .ghostBtn:disabled { opacity: 0.4; }
+
+.backBtn {
+  width: 100%;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-size: 0.98rem;
+  font-weight: 600;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.backBtn:active { transform: scale(0.98); }
 
 .error { color: #e85d47; font-size: 0.85rem; }
 
